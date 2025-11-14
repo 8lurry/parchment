@@ -41,12 +41,47 @@ class BlockBlot extends ParentBlot implements Formattable {
 
   protected attributes: AttributorStore;
 
+  // Required container blot names — used to filter formats that belong to a parent container
+  requiredContainersNames: string[];
+
   constructor(scroll: Root, domNode: Node) {
     super(scroll, domNode);
     this.attributes = new AttributorStore(this.domNode);
+    let rc = this.statics.requiredContainer;
+    const parentNames: string[] = [];
+    while (rc != null) {
+      parentNames.push(rc.blotName);
+      rc = (rc as any).requiredContainer;
+    }
+    this.requiredContainersNames = parentNames;
   }
 
   public format(name: string, value: any): void {
+    if (this.requiredContainersNames.includes(name)) {
+      let parentContainer = this.statics.requiredContainer,
+        parent = this.parent;
+      while (parentContainer != null) {
+        // Parent containers may not be initialized yet — they'll be ready after optimize(), so later call to format will succeed.
+        if (!(parent instanceof parentContainer)) {
+          break;
+        }
+        if (name == parentContainer.blotName) {
+          // @ts-expect-error - parent may not declare format in its type
+          if (typeof parent.format !== 'function') {
+            throw new Error(
+              `Parent blot ${(parent.constructor as BlotConstructor).blotName} missing 'format' method`,
+            );
+          }
+          // @ts-expect-error - here we are already safe, hack with typescript
+          parent.format(name, value);
+          break;
+        }
+        parentContainer = (parentContainer as BlotConstructor)
+          .requiredContainer;
+        parent = parent.parent;
+      }
+      return;
+    }
     const format = this.scroll.query(name, Scope.BLOCK);
     if (format == null) {
       return;
