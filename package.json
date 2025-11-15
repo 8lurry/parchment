@@ -1,6 +1,6 @@
 {
   "name": "parchment",
-  "version": "3.0.0",
+  "version": "2025.11.0",
   "description": "A document model for rich text editors",
   "author": "Jason Chen <jhchen7@gmail.com>",
   "homepage": "http://quilljs.com/docs/parchment",
