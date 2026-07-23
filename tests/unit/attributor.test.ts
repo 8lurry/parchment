@@ -43,6 +43,12 @@ describe('Attributor', function () {
     expect(Object.keys(blot['attributes']['attributes'])).toEqual(['align']);
     blot.format('styles', { 'margin-top': '10px', 'text-align': false });
     expect(Object.keys(blot['attributes']['attributes'])).toEqual(['styles']);
+
+    blot.format('styles', { 'margin-top': false, 'text-align': 'center' });
+    expect(Object.keys(blot['attributes']['attributes'])).toEqual(['align']);
+
+    blot.format('styles', false);
+    expect(Object.keys(blot['attributes']['attributes'])).toEqual([]);
   });
 
   it('add to inline', function () {

@@ -19,14 +19,17 @@ function hiphenate(name: string): string {
 }
 
 
-function inlineStyleToObject(el: HTMLElement): Record<string, string> | null {
+function inlineStyleToObject(el: HTMLElement): [Record<string, string> | null, Record<string, Attributor>] {
     const style = el.style;
     const out: Record<string, string> = {};
     const reg = StylesAttributor.getRegistry(el);
+    const styles: Record<string, Attributor> = {};
 
     for (let i = 0; i < style.length; i++) {
         const propName = style[i];
-        if (reg && reg.query(hiphenate(propName), Scope.ATTRIBUTE) instanceof StyleAttributor) {
+        const attributor = reg?.query(hiphenate(propName), Scope.ATTRIBUTE)
+        if (attributor && attributor instanceof StyleAttributor) {
+            styles[propName] = attributor;
             continue;
         }
         const propValue = style.getPropertyValue(propName);
@@ -34,10 +37,10 @@ function inlineStyleToObject(el: HTMLElement): Record<string, string> | null {
     }
 
     if (Object.keys(out).length === 0) {
-        return null;
+        return [null, styles];
     }
 
-    return out;
+    return [out, styles];
 }
 
 
@@ -86,6 +89,18 @@ class StylesAttributor extends Attributor {
   }
 
   public remove(node: HTMLElement): void {
+    const reg = StylesAttributor.getRegistry(node);
+    if (!reg) {
+      throw new Error('Unable to find registry for domNode');
+    }
+    const styles = inlineStyleToObject(node)[1];
+    const blot = reg.find(node);
+    if (!blot) {
+      throw new Error('Unable to find blot for domNode');
+    }
+    Object.keys(styles).forEach((key) => {
+      delete (blot as any).attributes.attributes[styles[key].attrName];
+    });
     node.removeAttribute('style');
   }
 
@@ -105,7 +120,7 @@ class StylesAttributor extends Attributor {
   }
 
   public value(node: HTMLElement): any {
-    return inlineStyleToObject(node);
+    return inlineStyleToObject(node)[0];
   }
 
   public canAdd(_node: HTMLElement, value: any): boolean {
