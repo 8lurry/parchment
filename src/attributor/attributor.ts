@@ -6,8 +6,11 @@ export interface AttributorOptions {
 }
 
 export default class Attributor {
+  static ignoredKeys = new Set<string>();
+
   public static keys(node: HTMLElement): string[] {
-    return Array.from(node.attributes).map((item: Attr) => item.name);
+    return Array.from(node.attributes).map((item: Attr) => item.name)
+      .filter(name => !Attributor.ignoredKeys.has(name));
   }
 
   public scope: Scope;
@@ -60,3 +63,5 @@ export default class Attributor {
     return '';
   }
 }
+
+Attributor.ignoredKeys.add('style');

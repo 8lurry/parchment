@@ -12,6 +12,7 @@ import Attributor from './attributor/attributor.js';
 import ClassAttributor from './attributor/class.js';
 import AttributorStore from './attributor/store.js';
 import StyleAttributor from './attributor/style.js';
+import StylesAttributor, { Styles } from './attributor/styles.js';
 
 import Registry from './registry.js';
 import Scope from './scope.js';
@@ -31,6 +32,8 @@ export {
   AttributorStore,
   Registry,
   Scope,
+  StylesAttributor,
+  Styles,
 };
 
 export type { RegistryInterface, RegistryDefinition } from './registry.js';

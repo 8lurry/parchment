@@ -1,6 +1,6 @@
 {
   "name": "parchment",
-  "version": "2025.11.0",
+  "version": "2026.7.0",
   "description": "A document model for rich text editors",
   "author": "Jason Chen <jhchen7@gmail.com>",
   "homepage": "http://quilljs.com/docs/parchment",
@@ -36,7 +36,7 @@
     "singleQuote": true
   },
   "license": "BSD-3-Clause",
-  "repository": "github:quilljs/parchment",
+  "repository": "github:8lurry/parchment",
   "scripts": {
     "build": "npm run build:bundle && npm run build:types",
     "build:bundle": "vite build",
@@ -48,6 +48,6 @@
     "test:pkg": "attw $(npm pack)"
   },
   "bugs": {
-    "url": "https://github.com/quilljs/parchment/issues"
+    "url": "https://github.com/8lurry/parchment/issues"
   }
 }

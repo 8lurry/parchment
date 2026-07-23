@@ -26,6 +26,25 @@ describe('Attributor', function () {
     );
   });
 
+  it("format with styles", function () {
+    const blot = ctx.scroll.create('block') as BlockBlot;
+    blot.format('align', 'right');
+    expect(Object.keys(blot['attributes']['attributes'])).toEqual(['align']);
+    blot.format('styles', { 'text-align': false });
+    expect(Object.keys(blot['attributes']['attributes'])).toEqual([]);
+    blot.format('styles', { 'text-align': 'right', 'margin-top': '10px' });
+    expect(blot.domNode.outerHTML).toEqual(
+      '<p style="text-align: right; margin-top: 10px;"></p>',
+    );
+    expect(Object.keys(blot['attributes']['attributes']).sort()).toEqual(
+      ['align', 'styles'].sort(),
+    );
+    blot.format('styles', { 'margin-top': false });
+    expect(Object.keys(blot['attributes']['attributes'])).toEqual(['align']);
+    blot.format('styles', { 'margin-top': '10px', 'text-align': false });
+    expect(Object.keys(blot['attributes']['attributes'])).toEqual(['styles']);
+  });
+
   it('add to inline', function () {
     const container = ctx.scroll.create('block') as BlockBlot;
     const boldBlot = ctx.scroll.create('bold') as BoldBlot;

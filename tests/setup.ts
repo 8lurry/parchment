@@ -22,6 +22,7 @@ import {
   Indent,
   Size,
 } from './__helpers__/registry/attributor.js';
+import { Styles } from '../src/parchment.js';
 import { HeaderBlot } from './__helpers__/registry/block.js';
 import { ImageBlot, VideoBlot } from './__helpers__/registry/embed.js';
 import { ListContainer, ListItem } from './__helpers__/registry/list.js';
@@ -37,6 +38,7 @@ const getTestRegistry = () => {
   reg.register(AuthorBlot, BoldBlot, ItalicBlot, ScriptBlot);
 
   reg.register(Color, Size, Family, Id, Align, Indent);
+  reg.register(Styles);
   reg.register(HeaderBlot);
   reg.register(ImageBlot, VideoBlot);
   reg.register(ListItem, ListContainer);

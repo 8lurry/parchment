@@ -4,6 +4,7 @@ import Scope from '../scope.js';
 import Attributor from './attributor.js';
 import ClassAttributor from './class.js';
 import StyleAttributor from './style.js';
+import StylesAttributor from './styles.js';
 
 class AttributorStore {
   private attributes: { [key: string]: Attributor } = {};
@@ -39,9 +40,11 @@ class AttributorStore {
     const attributes = Attributor.keys(this.domNode);
     const classes = ClassAttributor.keys(this.domNode);
     const styles = StyleAttributor.keys(this.domNode);
+    const stylesMap = StylesAttributor.keys(this.domNode);
     attributes
       .concat(classes)
       .concat(styles)
+      .concat(stylesMap)
       .forEach((name) => {
         const attr = blot.scroll.query(name, Scope.ATTRIBUTE);
         if (attr instanceof Attributor) {
