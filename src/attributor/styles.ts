@@ -20,21 +20,34 @@ function hiphenate(name: string): string {
 
 
 function inlineStyleToObject(el: HTMLElement): [Record<string, string> | null, Record<string, Attributor>] {
-    const style = el.style;
+    // const style = el.style;
+    const style = el.getAttribute('style');
     const out: Record<string, string> = {};
     const reg = StylesAttributor.getRegistry(el);
     const styles: Record<string, Attributor> = {};
 
-    for (let i = 0; i < style.length; i++) {
-        const propName = style[i];
-        const attributor = reg?.query(hiphenate(propName), Scope.ATTRIBUTE)
-        if (attributor && attributor instanceof StyleAttributor) {
-            styles[propName] = attributor;
-            continue;
+    style?.split(';').forEach((styleProp) => {
+        const [propName, propValue] = styleProp.split(':').map((s) => s.trim());
+        if (propName && propValue) {
+            const attributor = reg?.query(hiphenate(propName), Scope.ATTRIBUTE)
+            if (attributor && attributor instanceof StyleAttributor) {
+                styles[propName] = attributor;
+            } else {
+                out[camelize(propName)] = propValue;
+            }
         }
-        const propValue = style.getPropertyValue(propName);
-        out[camelize(propName)] = propValue;
-    }
+    });
+
+    // for (let i = 0; i < style.length; i++) {
+    //     const propName = style[i];
+    //     const attributor = reg?.query(hiphenate(propName), Scope.ATTRIBUTE)
+    //     if (attributor && attributor instanceof StyleAttributor) {
+    //         styles[propName] = attributor;
+    //         continue;
+    //     }
+    //     const propValue = style.getPropertyValue(propName);
+    //     out[camelize(propName)] = propValue;
+    // }
 
     if (Object.keys(out).length === 0) {
         return [null, styles];
