@@ -62,6 +62,13 @@ class ClassesAttributor extends Attributor {
     if (!reg) {
       throw new Error('Unable to find registry for domNode');
     }
+    const blot = reg.find(node);
+    if (!blot) {
+      throw new Error('Unable to find blot for domNode');
+    }
+    if (blot.statics.className) {
+      value[blot.statics.className] = true;
+    }
     const [current,, overrides] = inlineClassToObject(node);
     if (!klass) {
       Object.keys(current || {}).forEach((key) => {
@@ -80,10 +87,6 @@ class ClassesAttributor extends Attributor {
       if (!klass) {
         const prefix = key.split('-').slice(0, -1).join('-');
         klass = reg.query(prefix, Scope.ATTRIBUTE) as ClassAttributor;
-      }
-      const blot = reg.find(node);
-      if (!blot) {
-        throw new Error('Unable to find blot for domNode');
       }
       if (klass instanceof ClassAttributor) {
         if (klass.attrName in overrides) {

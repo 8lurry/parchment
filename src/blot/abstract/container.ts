@@ -76,7 +76,7 @@ export class GenericContainer extends ContainerBlot {
   public static isGenericContainer = true;
 
   static allowedChildren: BlotConstructor[] = [
-    GenericContainer,
+    ContainerBlot,
     BlockBlot,
   ];
 
