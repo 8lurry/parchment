@@ -6,6 +6,7 @@ import {
   BlockBlot,
   InlineBlot,
   TextBlot,
+  GenericContainer,
   type BlotConstructor,
 } from '../src/parchment.js';
 import {
@@ -23,6 +24,8 @@ import {
   Size,
 } from './__helpers__/registry/attributor.js';
 import { Styles } from '../src/parchment.js';
+import { Classes } from '../src/parchment.js';
+import { ContainerAttributorInstance } from '../src/parchment.js';
 import { HeaderBlot } from './__helpers__/registry/block.js';
 import { ImageBlot, VideoBlot } from './__helpers__/registry/embed.js';
 import { ListContainer, ListItem } from './__helpers__/registry/list.js';
@@ -33,12 +36,15 @@ const getTestRegistry = () => {
 
   reg.register(ScrollBlot as unknown as BlotConstructor);
   reg.register(BlockBlot);
+  reg.register(GenericContainer);
   reg.register(InlineBlot);
   reg.register(TextBlot);
   reg.register(AuthorBlot, BoldBlot, ItalicBlot, ScriptBlot);
 
   reg.register(Color, Size, Family, Id, Align, Indent);
   reg.register(Styles);
+  reg.register(Classes);
+  reg.register(ContainerAttributorInstance);
   reg.register(HeaderBlot);
   reg.register(ImageBlot, VideoBlot);
   reg.register(ListItem, ListContainer);

@@ -1,7 +1,7 @@
 import Attributor from './attributor.js';
 import { Styles } from './styles.js';
 
-function camelize(name: string): string {
+export function camelize(name: string): string {
   const parts = name.split('-');
   const rest = parts
     .slice(1)
@@ -25,7 +25,7 @@ class StyleAttributor extends Attributor {
     // // @ts-expect-error Fix me later
     // node.style[camelize(this.keyName)] = value;
     // return true;
-    return Styles.add(node, { [this.keyName]: value });
+    return Styles.add(node, { [this.keyName]: value }, this);
   }
 
   public remove(node: HTMLElement): void {
@@ -34,7 +34,7 @@ class StyleAttributor extends Attributor {
     // if (!node.getAttribute('style')) {
     //   node.removeAttribute('style');
     // }
-    Styles.removeStyle(node, this.keyName);
+    Styles.removeStyle(node, this.keyName, this);
   }
 
   public value(node: HTMLElement): any {

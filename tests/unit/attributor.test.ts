@@ -27,6 +27,7 @@ describe('Attributor', function () {
   });
 
   it("format with styles", function () {
+    ctx.scroll.containerFormats = true;
     const blot = ctx.scroll.create('block') as BlockBlot;
     blot.format('align', 'right');
     expect(Object.keys(blot['attributes']['attributes'])).toEqual(['align']);
@@ -49,6 +50,37 @@ describe('Attributor', function () {
 
     blot.format('styles', false);
     expect(Object.keys(blot['attributes']['attributes'])).toEqual([]);
+    ctx.scroll.containerFormats = false;
+  });
+
+  it('format with classes', function () {
+    ctx.scroll.containerFormats = true;
+    const blot = ctx.scroll.create('block') as BlockBlot;
+    blot.format('indent', 2);
+    expect(Object.keys(blot['attributes']['attributes'])).toEqual(['indent']);
+    blot.format('classes', { 'indent-2': false });
+    expect(Object.keys(blot['attributes']['attributes'])).toEqual([]);
+    blot.format('classes', { 'indent-2': true, 'indent-3': true });
+    expect(blot.domNode.outerHTML).toEqual(
+      '<p class="indent-3"></p>',
+    );
+    expect(Object.keys(blot['attributes']['attributes']).sort()).toEqual(
+      ['indent'].sort(),
+    );
+    blot.format('classes', { 'indent-3': false });
+    expect(blot.domNode.outerHTML).toEqual('<p></p>');
+    expect(Object.keys(blot['attributes']['attributes'])).toEqual([]);
+    blot.format('classes', { 'indent-3': true, 'indent-2': false });
+    expect(blot.domNode.outerHTML).toEqual('<p class="indent-3"></p>');
+    expect(Object.keys(blot['attributes']['attributes'])).toEqual(['indent']);
+
+    blot.format('classes', { 'indent-3': false, 'indent-2': true });
+    expect(blot.domNode.outerHTML).toEqual('<p class="indent-2"></p>');
+    expect(Object.keys(blot['attributes']['attributes'])).toEqual(['indent']);
+
+    blot.format('classes', false);
+    expect(Object.keys(blot['attributes']['attributes'])).toEqual([]);
+    ctx.scroll.containerFormats = false;
   });
 
   it('add to inline', function () {

@@ -1,5 +1,4 @@
 import Attributor from '../attributor/attributor.js';
-import AttributorStore from '../attributor/store.js';
 import Scope from '../scope.js';
 import type {
   Blot,
@@ -10,6 +9,8 @@ import type {
 import LeafBlot from './abstract/leaf.js';
 import ParentBlot from './abstract/parent.js';
 import InlineBlot from './inline.js';
+import type { SerializedContainer, ContainerFormatValue } from '../heirarchical/types.js';
+import type { GenericContainer } from '../blot/abstract/container.js';
 
 class BlockBlot extends ParentBlot implements Formattable {
   public static blotName = 'block';
@@ -39,47 +40,13 @@ class BlockBlot extends ParentBlot implements Formattable {
     }
   }
 
-  protected attributes: AttributorStore;
-
-  // Required container blot names — used to filter formats that belong to a parent container
-  requiredContainersNames: string[];
-
   constructor(scroll: Root, domNode: Node) {
     super(scroll, domNode);
-    this.attributes = new AttributorStore(this.domNode);
-    let rc = this.statics.requiredContainer;
-    const parentNames: string[] = [];
-    while (rc != null) {
-      parentNames.push(rc.blotName);
-      rc = (rc as any).requiredContainer;
-    }
-    this.requiredContainersNames = parentNames;
   }
 
   public format(name: string, value: any): void {
-    if (this.requiredContainersNames.includes(name)) {
-      let parentContainer = this.statics.requiredContainer,
-        parent = this.parent;
-      while (parentContainer != null) {
-        // Parent containers may not be initialized yet — they'll be ready after optimize(), so later call to format will succeed.
-        if (!(parent instanceof parentContainer)) {
-          break;
-        }
-        if (name == parentContainer.blotName) {
-          // @ts-expect-error - parent may not declare format in its type
-          if (typeof parent.format !== 'function') {
-            throw new Error(
-              `Parent blot ${(parent.constructor as BlotConstructor).blotName} missing 'format' method`,
-            );
-          }
-          // @ts-expect-error - here we are already safe, hack with typescript
-          parent.format(name, value);
-          break;
-        }
-        parentContainer = (parentContainer as BlotConstructor)
-          .requiredContainer;
-        parent = parent.parent;
-      }
+    if (name === 'container') {
+      this.formatContainer(value as ContainerFormatValue);
       return;
     }
     const format = this.scroll.query(name, Scope.BLOCK);
@@ -87,6 +54,8 @@ class BlockBlot extends ParentBlot implements Formattable {
       return;
     } else if (format instanceof Attributor) {
       this.attributes.attribute(format, value);
+    } else if ((format as typeof GenericContainer).isGenericContainer) {
+      this.wrap(name, value);
     } else if (name === this.statics.blotName && !value) {
       this.replaceWith(BlockBlot.blotName);
     } else if (
@@ -98,7 +67,7 @@ class BlockBlot extends ParentBlot implements Formattable {
   }
 
   public formats(): { [index: string]: any } {
-    const formats = this.attributes.values();
+    const formats = super.formats() || {};
     const format = this.statics.formats(this.domNode, this.scroll);
     if (format != null) {
       formats[this.statics.blotName] = format;
@@ -152,6 +121,39 @@ class BlockBlot extends ParentBlot implements Formattable {
     if (attributeChanged) {
       this.attributes.build();
     }
+  }
+
+  public restoreContainers(containers: SerializedContainer[]): void {
+    return super.restoreContainers(containers);
+  }
+
+  public serializeContainers(boundary?: Blot | undefined): SerializedContainer[] {
+    return super.serializeContainers(boundary);
+  }
+
+  public formatContainer(value: ContainerFormatValue): void {
+    const level = value.level ?? 0;
+
+    const chain = this.collectContainerChain();
+
+    const target = chain[level];
+
+    if (!target) {
+      return;
+    }
+
+    if (
+      value.blot &&
+      target.blotName !== value.blot
+    ) {
+      return;
+    }
+
+    Object.entries(value.formats).forEach(
+      ([name, val]) => {
+        target.blot.format(name, val);
+      },
+    );
   }
 }
 

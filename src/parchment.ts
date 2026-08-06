@@ -1,4 +1,4 @@
-import ContainerBlot from './blot/abstract/container.js';
+import ContainerBlot, { GenericContainer } from './blot/abstract/container.js';
 import LeafBlot from './blot/abstract/leaf.js';
 import ParentBlot from './blot/abstract/parent.js';
 
@@ -13,6 +13,8 @@ import ClassAttributor from './attributor/class.js';
 import AttributorStore from './attributor/store.js';
 import StyleAttributor from './attributor/style.js';
 import StylesAttributor, { Styles } from './attributor/styles.js';
+import ClassesAttributor, { Classes } from './attributor/classes.js';
+import ContainerAttributor, { ContainerAttributorInstance } from './attributor/container.js';
 
 import Registry from './registry.js';
 import Scope from './scope.js';
@@ -20,6 +22,7 @@ import Scope from './scope.js';
 export {
   ParentBlot,
   ContainerBlot,
+  GenericContainer,
   LeafBlot,
   EmbedBlot,
   ScrollBlot,
@@ -34,6 +37,10 @@ export {
   Scope,
   StylesAttributor,
   Styles,
+  ClassesAttributor,
+  Classes,
+  ContainerAttributor,
+  ContainerAttributorInstance,
 };
 
 export type { RegistryInterface, RegistryDefinition } from './registry.js';
@@ -49,3 +56,10 @@ export type {
   Parent,
   Root,
 } from './blot/abstract/blot.js';
+export type {
+  SerializedContainer,
+  ExistingContainer,
+  ContainerRestoreAction,
+  ContainerFormatValue,
+} from './heirarchical/types.js';
+export { containerRestoreAction } from './heirarchical/types.js';

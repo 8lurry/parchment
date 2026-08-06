@@ -1,4 +1,5 @@
 import Attributor from './attributor.js';
+import { Classes } from './classes.js';
 
 function match(node: HTMLElement, prefix: string): string[] {
   const className = node.getAttribute('class') || '';
@@ -18,19 +19,20 @@ class ClassAttributor extends Attributor {
     if (!this.canAdd(node, value)) {
       return false;
     }
-    this.remove(node);
-    node.classList.add(`${this.keyName}-${value}`);
-    return true;
+    const matches = match(node, this.keyName);
+    const toApply: Record<string, boolean> = {};
+    matches.forEach((name) => {
+      toApply[name] = false;
+    });
+    toApply[`${this.keyName}-${value}`] = true;
+    return Classes.add(node, toApply, this);
   }
 
   public remove(node: HTMLElement): void {
     const matches = match(node, this.keyName);
     matches.forEach((name) => {
-      node.classList.remove(name);
+      Classes.removeClass(node, name, this);
     });
-    if (node.classList.length === 0) {
-      node.removeAttribute('class');
-    }
   }
 
   public value(node: HTMLElement): any {

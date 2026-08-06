@@ -104,6 +104,7 @@ export interface Parent extends Blot {
 }
 
 export interface Root extends Parent {
+  containerFormats: boolean;
   create(input: Node | string | Scope, value?: any): Blot;
   find(node: Node | null, bubble?: boolean): Blot | null;
   query(query: string | Node | Scope, scope?: Scope): RegistryDefinition | null;

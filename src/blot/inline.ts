@@ -1,5 +1,4 @@
 import Attributor from '../attributor/attributor.js';
-import AttributorStore from '../attributor/store.js';
 import Scope from '../scope.js';
 import type {
   Blot,
@@ -52,11 +51,8 @@ class InlineBlot extends ParentBlot implements Formattable {
     return undefined;
   }
 
-  protected attributes: AttributorStore;
-
   constructor(scroll: Root, domNode: Node) {
     super(scroll, domNode);
-    this.attributes = new AttributorStore(this.domNode);
   }
 
   public format(name: string, value: any): void {

@@ -23,6 +23,7 @@ class ScrollBlot extends ParentBlot implements Root {
   public static tagName = 'DIV';
 
   public observer: MutationObserver;
+  containerFormats: boolean = false;
 
   constructor(
     public registry: Registry,
@@ -210,6 +211,10 @@ class ScrollBlot extends ParentBlot implements Root {
       super.update(mutationsMap.get(this.domNode), context);
     }
     this.optimize(mutations, context);
+  }
+
+  public allowSplit() {
+    return false;
   }
 }
 

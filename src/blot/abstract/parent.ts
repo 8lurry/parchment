@@ -3,6 +3,12 @@ import ParchmentError from '../../error.js';
 import Scope from '../../scope.js';
 import type { Blot, BlotConstructor, Parent, Root } from './blot.js';
 import ShadowBlot from './shadow.js';
+import AttributorStore from '../../attributor/store.js';
+import Attributor from '../../attributor/attributor.js';
+import type { ExistingContainer, SerializedContainer } from '../../heirarchical/types.js';
+import { containerRestoreAction } from '../../heirarchical/types.js';
+import type ContainerBlot from './container.js';
+import type BlockBlot from '../block.js';
 
 function makeAttachedBlot(node: Node, scroll: Root): Blot {
   const found = scroll.find(node);
@@ -24,6 +30,10 @@ function makeAttachedBlot(node: Node, scroll: Root): Blot {
 
 class ParentBlot extends ShadowBlot implements Parent {
   /**
+   * Allow formats in ParentBlot.
+  */
+  protected attributes: AttributorStore;
+  /**
    * Whitelist array of Blots that can be direct children.
    */
   public static allowedChildren?: BlotConstructor[];
@@ -40,6 +50,7 @@ class ParentBlot extends ShadowBlot implements Parent {
 
   constructor(scroll: Root, domNode: Node) {
     super(scroll, domNode);
+    this.attributes = new AttributorStore(this.domNode);
     this.build();
   }
 
@@ -249,6 +260,10 @@ class ParentBlot extends ShadowBlot implements Parent {
     });
   }
 
+  public removeEmptyContainer(_context?: { [key: string]: any }): boolean {
+    return false;
+  }
+
   public optimize(context?: { [key: string]: any }): void {
     super.optimize(context);
     this.enforceAllowedChildren();
@@ -256,6 +271,10 @@ class ParentBlot extends ShadowBlot implements Parent {
       this.domNode.insertBefore(this.uiNode, this.domNode.firstChild);
     }
     if (this.children.length === 0) {
+      if (this.removeEmptyContainer(context)) {
+        this.remove();
+        return;
+      }
       if (this.statics.defaultChild != null) {
         const child = this.scroll.create(this.statics.defaultChild.blotName);
         this.appendChild(child);
@@ -395,6 +414,261 @@ class ParentBlot extends ShadowBlot implements Parent {
       });
     this.enforceAllowedChildren();
   }
+
+  public formats(): { [index: string]: any } {
+    const fmts = this.attributes.values();
+    if (Object.keys(fmts).length > 0) {
+      return fmts;
+    }
+    return undefined as any;
+  }
+
+  protected formatAttribute(name: string, value: any): boolean {
+    const format = this.scroll.query(name, Scope.ATTRIBUTE);
+    if (format == null) {
+      return false;
+    } else if (format instanceof Attributor) {
+      this.attributes.attribute(format, value);
+      return true;
+    }
+    return false;
+  }
+
+  public format(name: string, value: any): void {
+    this.formatAttribute(name, value);
+  }
+
+  public collectContainerChain(): ExistingContainer[] {
+    const chain: ExistingContainer[] = [];
+
+    let current = this.parent;
+
+    while (current && current.statics.blotName !== 'scroll') {
+      chain.push({
+        blot: current as ParentBlot,
+        blotName: current.statics.blotName,
+      });
+      current = current.parent;
+    }
+
+    return chain;
+  }
+
+  public updateFormats(
+    blot: ParentBlot,
+    desired: Record<string, unknown>,
+  ): void {
+    const current = blot.formats() || {};
+
+    // Remove formats no longer present.
+    Object.keys(current).forEach((name) => {
+      if (!(name in desired)) {
+        blot.format(name, false);
+      }
+    });
+
+    // Apply desired formats.
+    Object.entries(desired).forEach(([name, value]) => {
+      blot.format(name, value);
+    });
+  }
+
+  protected restoreContainers(containers: SerializedContainer[]): void {
+    const prev = this.prev;
+    const next = this.next;
+    const existing = this.collectContainerChain();
+    let prevExisting: ExistingContainer[] = [];
+
+    const boundary = this.getPreviousBlock();
+    if (boundary) {
+      prevExisting = (boundary as BlockBlot).collectContainerChain();
+    }
+
+    let started = false;
+    let activeCurrent: Blot = this.scroll;
+    let newContainerCreated = false;
+    let brokenOutFromPrev = false;
+    let currentNext: Blot | null = null;
+    if (prevExisting.length) {
+      currentNext = prevExisting[prevExisting.length - 1].blot.next;
+    }
+    if (!currentNext && existing.length) {
+      currentNext = existing[existing.length - 1].blot.next;
+    }
+
+    containers = [...containers].reverse();
+
+    for (let i = 0; i < containers.length; i++) {
+      const serialized = containers[i];
+      let current: ExistingContainer | undefined;
+      if (!started && serialized.action === containerRestoreAction.START) {
+        started = true;
+      }
+      if (!started && !brokenOutFromPrev && serialized.action === containerRestoreAction.MERGE_TO_PREV && prevExisting.length) {
+        current = prevExisting.pop();
+        existing.pop();
+	      const nextContainer = containers[i + 1];
+        if (prevExisting.length) {
+          if (!nextContainer) {
+            currentNext = prevExisting[prevExisting.length - 1].blot.next;
+          } else if (nextContainer.action !== containerRestoreAction.REUSE) {
+                  currentNext = prevExisting[prevExisting.length - 1].blot.next;
+          } else if (existing.length) {
+            currentNext = existing[existing.length - 1].blot.next;
+          } else {
+            currentNext = null;
+          }
+        } else if (existing.length) {
+          if (!nextContainer || nextContainer.action !== containerRestoreAction.REUSE) {
+            currentNext = existing[existing.length - 1].blot;
+          } else {
+                  currentNext = existing[existing.length - 1].blot.next;
+          }
+        } else {
+          currentNext = next;
+        }
+      } else if (existing.length && !started) {
+        brokenOutFromPrev = true;
+        current = existing.pop();
+        if (current?.blot.parent !== activeCurrent) {
+          current = undefined;
+        }
+        if (existing.length) {
+          currentNext = existing[existing.length - 1].blot.next;
+        } else {
+          currentNext = next;
+        }
+      } else {
+        current = undefined;
+        currentNext = null;
+      }
+
+      if (started || !current || current.blotName !== serialized.blot) {
+        started = true;
+        newContainerCreated = true;
+        const newContainer = this.scroll.create(serialized.blot) as ParentBlot;
+        if (this.parent === activeCurrent) {
+          this.parent.insertBefore(newContainer, next);
+          currentNext = null;
+        } else if (existing.length && currentNext) {
+          (activeCurrent as ParentBlot).insertBefore(newContainer, currentNext);
+          currentNext = null;
+        } else {
+          (activeCurrent as ParentBlot).appendChild(newContainer);
+        }
+        activeCurrent = newContainer;
+        if (serialized.formats) {
+          this.updateFormats(newContainer, serialized.formats);
+        }
+      } else {
+        activeCurrent = current.blot;
+        if (serialized.formats) {
+          this.updateFormats(current.blot, serialized.formats);
+        }
+      }
+    }
+    if (existing.length && !newContainerCreated) {
+      if (next) {
+        currentNext = (activeCurrent as ContainerBlot).splitContainerChain(this, activeCurrent as ContainerBlot);
+      }
+      if (prev) {
+        const clone = (activeCurrent as ContainerBlot).splitContainerChain(prev, activeCurrent as ContainerBlot);
+        if (!next) {
+          currentNext = clone;
+        }
+      }
+    }
+    if (activeCurrent !== this.parent) {
+      (activeCurrent as ParentBlot).insertBefore(
+        this,
+        currentNext?.parent === activeCurrent ? currentNext : undefined
+      );
+    }
+  }
+
+  splitContainerChain(
+    block: Blot,
+    under: ContainerBlot | Root | null = null,
+  ): ContainerBlot | null {
+    let child: Blot = block;
+
+    if (!under) {
+      under = block.scroll;
+    }
+
+    let bottom: Blot | undefined;
+
+    while (child.parent && child.parent !== under && (child.parent as ParentBlot).allowSplit()) {
+      const parent = child.parent as ParentBlot;
+      bottom = parent.splitAfter(child);
+      child = parent;
+    }
+
+    return bottom as ContainerBlot | null;
+  }
+  
+  public removeContainer(): void {
+    this.unwrap();
+  }
+
+  public allowSplit(): boolean {
+    return true;
+  }
+
+  private getPreviousBlock(): Blot | undefined {
+    const index = this.offset(this.scroll);
+    if (index <= 0) {
+      return;
+    }
+    const definition = this.scroll.query(Scope.BLOCK_BLOT, Scope.BLOCK_BLOT);
+    const blockConstructor =
+      definition != null && 'blotName' in definition
+        ? (definition as BlotConstructor)
+        : null;
+    const [previousBlock] = this.scroll.descendant(
+      (blot: Blot) =>
+        blockConstructor != null && blot instanceof blockConstructor,
+      index - 1,
+    ) as [Blot | null, number];
+    return previousBlock || undefined;
+  }
+
+  protected serializeContainers(boundary?: Blot | undefined): SerializedContainer[] {
+    const containers: SerializedContainer[] = [];
+
+    if (!boundary) {
+      boundary = this.getPreviousBlock();
+    }
+
+    let current = this.parent;
+    let action = containerRestoreAction.REUSE;
+
+    while (current && current.statics.blotName !== 'scroll') {
+      const formats = (current as ContainerBlot).formats();
+      if (boundary && action !== containerRestoreAction.MERGE_TO_PREV) {
+        const [found, _] = current.descendant((blot: Blot) => blot === boundary, 0);
+        if (found) {
+          action = containerRestoreAction.MERGE_TO_PREV;
+        }
+      }
+
+      const properties: SerializedContainer = {
+        blot: current.statics.blotName,
+        action,
+        allowSplit: (current as ParentBlot).allowSplit(),
+      }
+
+      if (Object.keys(formats || {}).length > 0) {
+        properties.formats = formats;
+      }
+      containers.push(properties);
+
+      current = current.parent;
+    }
+
+    return containers;
+  }
 }
+
 
 export default ParentBlot;

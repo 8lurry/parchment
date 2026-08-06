@@ -1,10 +1,45 @@
-import type { Formattable } from '../blot/abstract/blot.js';
+import type { Formattable, Root } from '../blot/abstract/blot.js';
 import Registry from '../registry.js';
 import Scope from '../scope.js';
 import Attributor from './attributor.js';
 import ClassAttributor from './class.js';
 import StyleAttributor from './style.js';
 import StylesAttributor from './styles.js';
+import ClassesAttributor from './classes.js';
+
+export function formatValues(attributes: Record<string, Attributor>, domNode: HTMLElement): Record<string, any> {
+  return Object.keys(attributes).reduce(
+    (attrs: { [key: string]: any }, name: string) => {
+      attrs[name] = attributes[name].value(domNode);
+      return attrs;
+    },
+    {},
+  );
+}
+
+export function collectFormats(
+  node: HTMLElement,
+  scroll: Root | null,
+  attributes: Record<string, Attributor> ,
+): Record<string, Attributor> {
+
+  let otherAttributes: string[] = [];
+  if (scroll?.containerFormats) {
+    otherAttributes = StylesAttributor.keys(node).concat(ClassesAttributor.keys(node));
+  }
+
+  Attributor.keys(node)
+    .concat(ClassAttributor.keys(node))
+    .concat(StyleAttributor.keys(node))
+    .concat(otherAttributes)
+    .forEach(name => {
+      const attr = scroll?.query(name, Scope.ATTRIBUTE);
+      if (attr && attr instanceof Attributor) {
+        attributes[attr.attrName] = attr;
+      }
+    });
+  return attributes;
+}
 
 class AttributorStore {
   private attributes: { [key: string]: Attributor } = {};
@@ -37,20 +72,7 @@ class AttributorStore {
     if (blot == null) {
       return;
     }
-    const attributes = Attributor.keys(this.domNode);
-    const classes = ClassAttributor.keys(this.domNode);
-    const styles = StyleAttributor.keys(this.domNode);
-    const stylesMap = StylesAttributor.keys(this.domNode);
-    attributes
-      .concat(classes)
-      .concat(styles)
-      .concat(stylesMap)
-      .forEach((name) => {
-        const attr = blot.scroll.query(name, Scope.ATTRIBUTE);
-        if (attr instanceof Attributor) {
-          this.attributes[attr.attrName] = attr;
-        }
-      });
+    collectFormats(this.domNode, blot.scroll, this.attributes);
   }
 
   public copy(target: Formattable): void {
@@ -69,13 +91,7 @@ class AttributorStore {
   }
 
   public values(): { [key: string]: any } {
-    return Object.keys(this.attributes).reduce(
-      (attributes: { [key: string]: any }, name: string) => {
-        attributes[name] = this.attributes[name].value(this.domNode);
-        return attributes;
-      },
-      {},
-    );
+    return formatValues(this.attributes, this.domNode);
   }
 }
 
