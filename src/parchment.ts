@@ -58,6 +58,9 @@ export type {
 } from './blot/abstract/blot.js';
 export type {
   SerializedContainer,
+  SerializeContainerOptions,
+  ContainerInsertionInfo,
+  ContainerRemovalInfo,
   ExistingContainer,
   ContainerRestoreAction,
   ContainerFormatValue,

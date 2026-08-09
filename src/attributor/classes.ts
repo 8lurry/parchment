@@ -66,11 +66,11 @@ class ClassesAttributor extends Attributor {
     if (!blot) {
       throw new Error('Unable to find blot for domNode');
     }
-    if (blot.statics.className) {
-      value[blot.statics.className] = true;
-    }
     const [current,, overrides] = inlineClassToObject(node);
     if (!klass) {
+      if (blot.statics.className) {
+        value[blot.statics.className] = true;
+      }
       Object.keys(current || {}).forEach((key) => {
         if (!(key in value)) {
           value[key] = false;

@@ -9,7 +9,7 @@ import type {
 import LeafBlot from './abstract/leaf.js';
 import ParentBlot from './abstract/parent.js';
 import InlineBlot from './inline.js';
-import type { SerializedContainer, ContainerFormatValue } from '../heirarchical/types.js';
+import type { SerializedContainer, ContainerFormatValue, SerializeContainerOptions } from '../heirarchical/types.js';
 import type { GenericContainer } from '../blot/abstract/container.js';
 
 class BlockBlot extends ParentBlot implements Formattable {
@@ -127,8 +127,8 @@ class BlockBlot extends ParentBlot implements Formattable {
     return super.restoreContainers(containers);
   }
 
-  public serializeContainers(boundary?: Blot | undefined): SerializedContainer[] {
-    return super.serializeContainers(boundary);
+  public serializeContainers(options?: SerializeContainerOptions): SerializedContainer[] {
+    return super.serializeContainers(options);
   }
 
   public formatContainer(value: ContainerFormatValue): void {

@@ -5,7 +5,7 @@ import type { Blot, BlotConstructor, Parent, Root } from './blot.js';
 import ShadowBlot from './shadow.js';
 import AttributorStore from '../../attributor/store.js';
 import Attributor from '../../attributor/attributor.js';
-import type { ExistingContainer, SerializedContainer } from '../../heirarchical/types.js';
+import type { ContainerInsertionInfo, ExistingContainer, SerializeContainerOptions, SerializedContainer } from '../../heirarchical/types.js';
 import { containerRestoreAction } from '../../heirarchical/types.js';
 import type ContainerBlot from './container.js';
 import type BlockBlot from '../block.js';
@@ -484,19 +484,19 @@ class ParentBlot extends ShadowBlot implements Parent {
       prevExisting = (boundary as BlockBlot).collectContainerChain();
     }
 
+    containers = [...containers].reverse();
+
     let started = false;
     let activeCurrent: Blot = this.scroll;
     let newContainerCreated = false;
     let brokenOutFromPrev = false;
     let currentNext: Blot | null = null;
-    if (prevExisting.length) {
+    if (prevExisting.length && containers.length && containers[0].action === containerRestoreAction.MERGE_TO_PREV) {
       currentNext = prevExisting[prevExisting.length - 1].blot.next;
     }
     if (!currentNext && existing.length) {
       currentNext = existing[existing.length - 1].blot.next;
     }
-
-    containers = [...containers].reverse();
 
     for (let i = 0; i < containers.length; i++) {
       const serialized = containers[i];
@@ -545,6 +545,11 @@ class ParentBlot extends ShadowBlot implements Parent {
 
       if (started || !current || current.blotName !== serialized.blot) {
         started = true;
+        if (!newContainerCreated) {
+          if (existing.length && existing[existing.length - 1].blot.parent === activeCurrent) {
+            currentNext = this.stripContainer(prev as ParentBlot, next as ParentBlot, activeCurrent as ParentBlot);
+          }
+        }
         newContainerCreated = true;
         const newContainer = this.scroll.create(serialized.blot) as ParentBlot;
         if (this.parent === activeCurrent) {
@@ -568,15 +573,7 @@ class ParentBlot extends ShadowBlot implements Parent {
       }
     }
     if (existing.length && !newContainerCreated) {
-      if (next) {
-        currentNext = (activeCurrent as ContainerBlot).splitContainerChain(this, activeCurrent as ContainerBlot);
-      }
-      if (prev) {
-        const clone = (activeCurrent as ContainerBlot).splitContainerChain(prev, activeCurrent as ContainerBlot);
-        if (!next) {
-          currentNext = clone;
-        }
-      }
+      currentNext = this.stripContainer(prev as ParentBlot, next as ParentBlot, activeCurrent as ParentBlot);
     }
     if (activeCurrent !== this.parent) {
       (activeCurrent as ParentBlot).insertBefore(
@@ -586,10 +583,49 @@ class ParentBlot extends ShadowBlot implements Parent {
     }
   }
 
+  private stripContainer(prev: ParentBlot, next: ParentBlot, activeCurrent: ParentBlot): ParentBlot | null {
+    let currentPrev = prev;
+    let currentNext = next;
+    let newNext = null;
+    let currentChild = this as ParentBlot;
+
+    while (true) {
+      if (currentNext) {
+        newNext = activeCurrent.splitContainerChain(currentChild, activeCurrent);
+        break;
+      }
+      currentChild = currentChild.parent as ParentBlot;
+      if (currentChild.parent === activeCurrent) {
+        newNext = currentChild.next;
+        break;
+      }
+      currentNext = currentChild.next as ParentBlot;
+    }
+
+    currentChild = this as ParentBlot;
+
+    while (true) {
+      if (currentPrev) {
+        const after = activeCurrent.splitContainerChain(currentPrev, activeCurrent);
+        if (!newNext) {
+          newNext = after;
+        }
+        break;
+      }
+      currentChild = currentChild.parent as ParentBlot;
+      if (currentChild.parent === activeCurrent) {
+        break;
+      }
+      currentPrev = currentChild.prev as ParentBlot;
+    }
+
+    return newNext as ParentBlot | null;
+  }
+
   splitContainerChain(
     block: Blot,
-    under: ContainerBlot | Root | null = null,
-  ): ContainerBlot | null {
+    under: ParentBlot | Root | null = null,
+  ): ParentBlot | null {
     let child: Blot = block;
 
     if (!under) {
@@ -604,7 +640,7 @@ class ParentBlot extends ShadowBlot implements Parent {
       child = parent;
     }
 
-    return bottom as ContainerBlot | null;
+    return bottom as ParentBlot | null;
   }
   
   public removeContainer(): void {
@@ -633,8 +669,27 @@ class ParentBlot extends ShadowBlot implements Parent {
     return previousBlock || undefined;
   }
 
-  protected serializeContainers(boundary?: Blot | undefined): SerializedContainer[] {
+  private sanitizeContainer(info: ContainerInsertionInfo): SerializedContainer {
+    const { container, firstLine } = info;
+    const sanitized: SerializedContainer = { ...container };
+    if (!firstLine) {
+      sanitized.action = containerRestoreAction.MERGE_TO_PREV;
+    }
+    return sanitized;
+  }
+
+  private isChildOf(blot: Blot, parent: Parent): boolean {
+    const blotOffset = blot.offset(this.scroll);
+    const parentOffset = parent.offset(this.scroll);
+    return (
+      blotOffset >= parentOffset &&
+      blotOffset + blot.length() <= parentOffset + parent.length()
+    );
+  }
+
+  protected serializeContainers(options?: SerializeContainerOptions): SerializedContainer[] {
     const containers: SerializedContainer[] = [];
+    let boundary = options && options.boundary;
 
     if (!boundary) {
       boundary = this.getPreviousBlock();
@@ -643,11 +698,26 @@ class ParentBlot extends ShadowBlot implements Parent {
     let current = this.parent;
     let action = containerRestoreAction.REUSE;
 
+    if (current.statics.blotName === 'scroll' && options?.insertion?.blot.statics.blotName === 'scroll') {
+      containers.push(this.sanitizeContainer(options.insertion));
+    }
+
     while (current && current.statics.blotName !== 'scroll') {
+      if (current === options?.removal?.blot) {
+        current = current.parent;
+        if (containers.length > 0) {
+          containers[containers.length - 1].action = options.removal.firstLine ? containerRestoreAction.START : containerRestoreAction.MERGE_TO_PREV;
+        }
+        continue;
+      }
+
+      if (current === options?.insertion?.blot) {
+        containers.push(this.sanitizeContainer(options.insertion))
+      }
+
       const formats = (current as ContainerBlot).formats();
       if (boundary && action !== containerRestoreAction.MERGE_TO_PREV) {
-        const [found, _] = current.descendant((blot: Blot) => blot === boundary, 0);
-        if (found) {
+        if (this.isChildOf(boundary, current)) {
           action = containerRestoreAction.MERGE_TO_PREV;
         }
       }
