@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import ParentBlot from '../../src/blot/abstract/parent.js';
-import { setupContextBeforeEach } from '../setup.js';
+import { setupContextBeforeEach, registerStylesFeature } from '../setup.js';
 import type { BlockBlot, ContainerBlot } from '../../src/parchment.js';
-import { containerRestoreAction } from '../../src/heirarchical/types.js';
+import { containerRestoreAction } from '../../src/hierarchical/types.js';
 
 describe('container formatting', function () {
     const ctx = setupContextBeforeEach();
     
     function initializeHTML(html: string) {
-        ctx.scroll.containerFormats = true;
+        registerStylesFeature(ctx);
         ctx.scroll.domNode.innerHTML = html;
         ctx.scroll.update();
     }

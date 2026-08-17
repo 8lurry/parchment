@@ -64,5 +64,5 @@ export type {
   ExistingContainer,
   ContainerRestoreAction,
   ContainerFormatValue,
-} from './heirarchical/types.js';
-export { containerRestoreAction } from './heirarchical/types.js';
+} from './hierarchical/types.js';
+export { containerRestoreAction } from './hierarchical/types.js';

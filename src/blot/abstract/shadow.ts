@@ -16,6 +16,9 @@ class ShadowBlot implements Blot {
   public static scope: Scope;
   public static tagName: string | string[];
 
+  public static isBlock: boolean = false;
+  public static isGenericContainer: boolean = false;
+
   public static create(rawValue?: unknown): Node {
     if (this.tagName == null) {
       throw new ParchmentError('Blot definition missing tagName');

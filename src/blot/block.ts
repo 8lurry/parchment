@@ -9,8 +9,9 @@ import type {
 import LeafBlot from './abstract/leaf.js';
 import ParentBlot from './abstract/parent.js';
 import InlineBlot from './inline.js';
-import type { SerializedContainer, ContainerFormatValue, SerializeContainerOptions } from '../heirarchical/types.js';
+import type { SerializedContainer, ContainerFormatValue, SerializeContainerOptions } from '../hierarchical/types.js';
 import type { GenericContainer } from '../blot/abstract/container.js';
+import { serializeContainers, restoreContainers, formatContainer } from '../hierarchical/hooks.js';
 
 class BlockBlot extends ParentBlot implements Formattable {
   public static blotName = 'block';
@@ -21,6 +22,8 @@ class BlockBlot extends ParentBlot implements Formattable {
     BlockBlot,
     LeafBlot,
   ];
+
+  public static isBlock = true;
 
   static create(value?: unknown) {
     return super.create(value) as HTMLElement;
@@ -46,7 +49,7 @@ class BlockBlot extends ParentBlot implements Formattable {
 
   public format(name: string, value: any): void {
     if (name === 'container') {
-      this.formatContainer(value as ContainerFormatValue);
+      formatContainer.call(this, value as ContainerFormatValue);
       return;
     }
     const format = this.scroll.query(name, Scope.BLOCK);
@@ -124,36 +127,11 @@ class BlockBlot extends ParentBlot implements Formattable {
   }
 
   public restoreContainers(containers: SerializedContainer[]): void {
-    return super.restoreContainers(containers);
+    return restoreContainers.call(this, containers);
   }
 
   public serializeContainers(options?: SerializeContainerOptions): SerializedContainer[] {
-    return super.serializeContainers(options);
-  }
-
-  public formatContainer(value: ContainerFormatValue): void {
-    const level = value.level ?? 0;
-
-    const chain = this.collectContainerChain();
-
-    const target = chain[level];
-
-    if (!target) {
-      return;
-    }
-
-    if (
-      value.blot &&
-      target.blotName !== value.blot
-    ) {
-      return;
-    }
-
-    Object.entries(value.formats).forEach(
-      ([name, val]) => {
-        target.blot.format(name, val);
-      },
-    );
+    return serializeContainers.call(this, options);
   }
 }
 

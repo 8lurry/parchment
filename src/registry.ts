@@ -13,10 +13,28 @@ export interface RegistryInterface {
   create(scroll: Root, input: Node | string | Scope, value?: any): Blot;
   query(query: string | Node | Scope, scope: Scope): RegistryDefinition | null;
   register(...definitions: any[]): any;
+
+  has(definition: RegistryDefinition): boolean;
+  clone(): RegistryInterface;
 }
 
 export default class Registry implements RegistryInterface {
   public static blots = new WeakMap<Node, Blot>();
+
+  public clone(): Registry {
+    const registry = new Registry();
+    registry.register(...Object.values(this.types));
+    return registry;
+  }
+
+  public has(definition: RegistryDefinition): boolean {
+    const key =
+      'blotName' in definition
+        ? definition.blotName
+        : definition.attrName;
+
+    return this.types[key] === definition;
+  }
 
   public static find(node?: Node | null, bubble = false): Blot | null {
     if (node == null) {
@@ -152,4 +170,15 @@ export default class Registry implements RegistryInterface {
       return definition;
     });
   }
+}
+
+export function findBlotAndRegistry(node: Node): {
+  blot: Blot | null,
+  registry: Registry | null,
+} {
+  const blot = Registry.find(node);
+  if (!blot) {
+    return { blot: null, registry: null };
+  }
+  return { blot, registry: (blot.scroll as any).registry }
 }

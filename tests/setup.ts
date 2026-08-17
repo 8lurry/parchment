@@ -42,8 +42,6 @@ const getTestRegistry = () => {
   reg.register(AuthorBlot, BoldBlot, ItalicBlot, ScriptBlot);
 
   reg.register(Color, Size, Family, Id, Align, Indent);
-  reg.register(Styles);
-  reg.register(Classes);
   reg.register(ContainerAttributorInstance);
   reg.register(HeaderBlot);
   reg.register(ImageBlot, VideoBlot);
@@ -71,3 +69,7 @@ export const setupContextBeforeEach = () => {
   });
   return ctx;
 };
+
+export function registerStylesFeature(ctx: TestContext) {
+  ctx.registry.register(Styles, Classes);
+}

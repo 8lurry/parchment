@@ -4,8 +4,9 @@ import Scope from '../scope.js';
 import Attributor from './attributor.js';
 import ClassAttributor from './class.js';
 import StyleAttributor from './style.js';
-import StylesAttributor from './styles.js';
-import ClassesAttributor from './classes.js';
+import type ScrollBlot from '../blot/scroll.js';
+import StylesAttributor, { Styles } from './styles.js';
+import ClassesAttributor, { Classes } from './classes.js';
 
 export function formatValues(attributes: Record<string, Attributor>, domNode: HTMLElement): Record<string, any> {
   return Object.keys(attributes).reduce(
@@ -24,8 +25,11 @@ export function collectFormats(
 ): Record<string, Attributor> {
 
   let otherAttributes: string[] = [];
-  if (scroll?.containerFormats) {
-    otherAttributes = StylesAttributor.keys(node).concat(ClassesAttributor.keys(node));
+  if ((scroll as ScrollBlot)?.registry.has(Styles)) {
+    otherAttributes = otherAttributes.concat(StylesAttributor.keys(node));
+  }
+  if ((scroll as ScrollBlot)?.registry.has(Classes)) {
+    otherAttributes = otherAttributes.concat(ClassesAttributor.keys(node));
   }
 
   Attributor.keys(node)

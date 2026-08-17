@@ -1,5 +1,6 @@
-import type ParentBlot from '../blot/abstract/parent.js';
-import type { Blot } from '../parchment.js';
+import type ContainerBlot from '../blot/abstract/container.js'
+import type BlockBlot from '../blot/block.js';
+import type EmbedBlot from '../blot/embed.js';
 
 export enum containerRestoreAction {
     REUSE = 'REUSE',
@@ -10,18 +11,18 @@ export enum containerRestoreAction {
 export type ContainerRestoreAction = keyof typeof containerRestoreAction;
 
 export type ContainerInsertionInfo = {
-    blot: ParentBlot;
+    blot: ContainerBlot;
     container: SerializedContainer;
     firstLine: boolean;
 };
 
 export type ContainerRemovalInfo = {
-    blot: ParentBlot;
+    blot: ContainerBlot;
     firstLine: boolean;
 };
 
 export type SerializeContainerOptions = {
-    boundary?: Blot;
+    boundary?: BlockBlot | EmbedBlot;
     insertion?: ContainerInsertionInfo;
     removal?: ContainerRemovalInfo;
 };
@@ -34,7 +35,7 @@ export interface SerializedContainer {
 }
 
 export interface ExistingContainer {
-    blot: ParentBlot;
+    blot: ContainerBlot;
     blotName: string;
 }
 

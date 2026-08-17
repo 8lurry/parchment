@@ -1,17 +1,17 @@
 import Attributor from './attributor.js';
-import Registry from '../registry.js';
+import Registry, { findBlotAndRegistry } from '../registry.js';
 import ClassAttributor from './class.js';
 import Scope from '../scope.js';
 
 
-function inlineClassToObject(el: HTMLElement): [Record<string, boolean> | null, Record<string, Attributor>, Record<string, string>] {
+function inlineClassToObject(el: HTMLElement): [Record<string, boolean>, Record<string, Attributor>, Record<string, string>] {
     const klass = el.getAttribute('class') || '';
     const out: Record<string, boolean> = {};
-    const reg = ClassesAttributor.getRegistry(el);
+    const reg = findBlotAndRegistry(el).registry;
     const classes: Record<string, Attributor> = {};
     const overrides: Record<string, string> = {};
 
-    klass?.split(' ').forEach((klassName) => {
+    klass?.split(' ').map(cls => cls.trim()).filter(cls => !!cls).forEach((klassName) => {
         const prefix = klassName.split('-').slice(0, -1).join('-');
         const attributor = reg?.query(prefix, Scope.ATTRIBUTE)
         if (attributor && attributor instanceof ClassAttributor) {
@@ -22,34 +22,12 @@ function inlineClassToObject(el: HTMLElement): [Record<string, boolean> | null, 
         }
     });
 
-    if (Object.keys(out).length === 0) {
-        return [null, classes, overrides];
-    }
-
     return [out, classes, overrides];
 }
 
 
 class ClassesAttributor extends Attributor {
-  public static reg: Registry | null = null;
-  
-  static getRegistry(domNode: HTMLElement): Registry | null {
-    if (ClassesAttributor.reg) {
-      return ClassesAttributor.reg;
-    }
-    const blot = Registry.find(domNode);
-    if (blot == null) {
-      return null;
-    }
-    ClassesAttributor.reg = (blot.scroll as any)?.registry;
-    return ClassesAttributor.reg;
-  }
-
   static keys(node: HTMLElement): string[] {
-    const blot = Registry.find(node);
-    if (blot != null && !blot.scroll.containerFormats) {
-      return [];
-    }
     return node.classList.length > 0 ? [ 'classes' ] : [];
   }
 
@@ -58,11 +36,7 @@ class ClassesAttributor extends Attributor {
       return false;
     }
     
-    const reg = ClassesAttributor.getRegistry(node);
-    if (!reg) {
-      throw new Error('Unable to find registry for domNode');
-    }
-    const blot = reg.find(node);
+    const { blot, registry } = findBlotAndRegistry(node);
     if (!blot) {
       throw new Error('Unable to find blot for domNode');
     }
@@ -71,98 +45,81 @@ class ClassesAttributor extends Attributor {
       if (blot.statics.className) {
         value[blot.statics.className] = true;
       }
-      Object.keys(current || {}).forEach((key) => {
+      Object.keys(current).forEach((key) => {
         if (!(key in value)) {
           value[key] = false;
         }
       });
     }
     Object.entries(value).forEach(([key, val]) => {
+      let localKlass = klass;
+      if (!localKlass) {
+        const prefix = key.split('-').slice(0, -1).join('-');
+        localKlass = registry!.query(prefix, Scope.ATTRIBUTE) as ClassAttributor;
+      }
       if (val === false) {
         if (node.classList.contains(key)) {
-          this.removeClass(node, key);
+          this.removeClass(node, key, localKlass, !klass);
         }
         return;
       }
-      if (!klass) {
-        const prefix = key.split('-').slice(0, -1).join('-');
-        klass = reg.query(prefix, Scope.ATTRIBUTE) as ClassAttributor;
-      }
-      if (klass instanceof ClassAttributor) {
-        if (klass.attrName in overrides) {
-          this.removeClass(node, overrides[klass.attrName], klass);
+      if (localKlass instanceof ClassAttributor) {
+        if (localKlass.attrName in overrides) {
+          this.removeClass(node, overrides[localKlass.attrName], localKlass);
         }
-        overrides[klass.attrName] = key;
-        (blot as any).attributes.attributes[klass.attrName] = klass;
-      } else if (blot.scroll.containerFormats) {
-        (blot as any).attributes.attributes[this.attrName] = this;
+        overrides[localKlass.attrName] = key;
+        if (!klass) {
+          (blot as any).attributes.attributes[localKlass.attrName] = localKlass;
+        }
       }
       node.classList.add(key);
     });
-    if (!node.getAttribute('class')) {
-      this.remove(node);
-      return false;
+    if (node.classList.length === 0) {
+      node.removeAttribute('class');
     }
     return true;
   }
 
   public remove(node: HTMLElement): void {
-    const reg = ClassesAttributor.getRegistry(node);
-    if (!reg) {
-      throw new Error('Unable to find registry for domNode');
-    }
-    const classes = inlineClassToObject(node)[1];
-    const blot = reg.find(node);
+    const blot = Registry.find(node);
     if (!blot) {
       throw new Error('Unable to find blot for domNode');
     }
-    Object.keys(classes).forEach((key) => {
-      delete (blot as any).attributes.attributes[classes[key].attrName];
+    const [out, classes, overrides] = inlineClassToObject(node);
+    Object.values(classes).forEach((attributor) => {
+      delete (blot as any).attributes.attributes[attributor.attrName];
     });
-    node.removeAttribute('class');
-    delete (blot as any).attributes.attributes[this.attrName];
+    if (blot.statics.className) {
+      Object.values(overrides).concat(Object.keys(out)).forEach((cls) => {
+        if (cls !== blot.statics.className) {
+          node.classList.remove(cls);
+        }
+      })
+    } else {
+      node.removeAttribute('class');
+    }
   }
 
-  public removeClass(node: HTMLElement, key: string, klass?: ClassAttributor): void {
+  public removeClass(node: HTMLElement, key: string, klass?: ClassAttributor, removeAttr: boolean = false): void {
     node.classList.remove(key);
-    const reg = ClassesAttributor.getRegistry(node);
-    if (reg) {
-      if (!klass) {
-        const prefix = key.split('-').slice(0, -1).join('-');
-        klass = reg.query(prefix, Scope.ATTRIBUTE) as ClassAttributor;
-      }
-      const blot = reg.find(node);
-      if (klass instanceof ClassAttributor) {
-        delete (blot as any)?.attributes.attributes[klass.attrName];
-      } else if (blot?.scroll.containerFormats) {
-        const keys = inlineClassToObject(node)[0];
-        if (!keys || !Object.keys(keys).length) {
-          delete (blot as any)?.attributes.attributes[this.attrName];
-        }
-      }
+    const blot = Registry.find(node);
+    if (blot && removeAttr && klass && klass instanceof ClassAttributor) {
+      delete (blot as any)?.attributes.attributes[klass.attrName];
     }
-    if (!node.getAttribute('class')) {
-      this.remove(node);
+    if (node.classList.length === 0) {
+      node.removeAttribute("class");
     }
   }
 
   public value(node: HTMLElement): any {
-    const blot = Registry.find(node);
-    if (blot != null && !blot.scroll.containerFormats) {
-      return undefined;
-    }
     const val = inlineClassToObject(node)[0];
-    if (!val || Object.keys(val).length === 0) {
+    if (Object.keys(val).length === 0) {
       return undefined;
     }
     return val;
   }
 
-  public canAdd(node: HTMLElement, value: any): boolean {
-    const blot = Registry.find(node);
-    if (blot != null && !blot.scroll.containerFormats) {
-      return false;
-    }
+  public canAdd(_node: HTMLElement, value: any): boolean {
     return value && typeof value === "object"
   }
 }

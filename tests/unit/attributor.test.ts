@@ -7,7 +7,7 @@ import type {
 } from '../../src/parchment.js';
 import type { HeaderBlot } from '../__helpers__/registry/block.js';
 import type { BoldBlot } from '../__helpers__/registry/inline.js';
-import { setupContextBeforeEach } from '../setup.js';
+import { setupContextBeforeEach, registerStylesFeature } from '../setup.js';
 
 describe('Attributor', function () {
   const ctx = setupContextBeforeEach();
@@ -27,7 +27,7 @@ describe('Attributor', function () {
   });
 
   it("format with styles", function () {
-    ctx.scroll.containerFormats = true;
+    registerStylesFeature(ctx);
     const blot = ctx.scroll.create('block') as BlockBlot;
     blot.format('align', 'right');
     expect(Object.keys(blot['attributes']['attributes'])).toEqual(['align']);
@@ -50,11 +50,10 @@ describe('Attributor', function () {
 
     blot.format('styles', false);
     expect(Object.keys(blot['attributes']['attributes'])).toEqual([]);
-    ctx.scroll.containerFormats = false;
   });
 
   it('format with classes', function () {
-    ctx.scroll.containerFormats = true;
+    registerStylesFeature(ctx);
     const blot = ctx.scroll.create('block') as BlockBlot;
     blot.format('indent', 2);
     expect(Object.keys(blot['attributes']['attributes'])).toEqual(['indent']);
@@ -80,7 +79,6 @@ describe('Attributor', function () {
 
     blot.format('classes', false);
     expect(Object.keys(blot['attributes']['attributes'])).toEqual([]);
-    ctx.scroll.containerFormats = false;
   });
 
   it('add to inline', function () {

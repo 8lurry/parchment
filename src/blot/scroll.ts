@@ -23,7 +23,6 @@ class ScrollBlot extends ParentBlot implements Root {
   public static tagName = 'DIV';
 
   public observer: MutationObserver;
-  containerFormats: boolean = false;
 
   constructor(
     public registry: Registry,

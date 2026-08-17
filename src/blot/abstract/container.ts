@@ -3,6 +3,8 @@ import BlockBlot from '../block.js';
 import type { BlotConstructor, Root } from './blot.js';
 import ParentBlot from './parent.js';
 import { collectFormats, formatValues } from '../../attributor/store.js';
+import EmbedBlot from '../embed.js';
+import { updateFormats } from '../../hierarchical/hooks.js';
 
 class ContainerBlot extends ParentBlot {
   public static blotName = 'container';
@@ -54,17 +56,8 @@ class ContainerBlot extends ParentBlot {
     return undefined;
   }
 
-  clone(): ContainerBlot {
-    if (!this.scroll.containerFormats) {
-      return super.clone() as ContainerBlot;
-    }
-    const clone = this.scroll.create(
-      this.statics.blotName,
-    ) as ContainerBlot;
-
-    clone.updateFormats(clone, this.formats() || {});
-
-    return clone;
+  public allowSplit(): boolean {
+    return true;
   }
 }
 
@@ -78,6 +71,7 @@ export class GenericContainer extends ContainerBlot {
   static allowedChildren: BlotConstructor[] = [
     ContainerBlot,
     BlockBlot,
+    EmbedBlot,
   ];
 
   public checkMerge(): boolean {
@@ -89,5 +83,15 @@ export class GenericContainer extends ContainerBlot {
 
   public removeEmptyContainer(_context: { [key: string]: any }): boolean {
     return true;
+  }
+
+  clone(): ContainerBlot {
+    const clone = this.scroll.create(
+      this.statics.blotName,
+    ) as ContainerBlot;
+
+    updateFormats(clone, this.formats() || {});
+
+    return clone;
   }
 }
